@@ -18,7 +18,11 @@ int i =0;
 float v = 0, w = 0, k11 = 0, k12 = 0, k13 = 0, k21 = 0, k22 = 0, k23 = 0, vr = 0,  vl = 0, e_x = 0, e_y = 0 , e_theta = 0;
 float x_g = 5 , y_g = 5, theta_g = 90;
 float vmr = 0, vml = 0, Vmr = 0, Vml = 0, rDcGain = 0, lDcGain = 0, gDcGain = 0 , l = 7.2, x_r = 0, y_r = 0, theta_r = 0;
-
+float lVolt,rVolt;
+float Lerror,Rerror;
+int lspeed =0;
+int rspeed=0;
+float lControlActionVolt,rControlActionVolt,left,right,lControlAction,rControlAction;
 void setup() {
   // put your setup code here, to run once:
   pinMode(rSet1, OUTPUT);
@@ -87,22 +91,44 @@ void loop() {
     calcErrors(x_r, y_r , theta_r);
 
   if (!(abs(e_x) >.01 ) && !(abs(e_y) > .01) && !(abs(e_theta) > .01)){ 
-  //get v,w
+    //get v,w
     gainMatrix();
   // get vr, vl by the kinematics
     kinematics(v, w);
 
   // Rpm
-    vmr = vr / R;
-    vml = vl / R;
+    rspeed = vr / R;
+    lspeed = vl / R;
 
   // get the required voltage 
-    Vmr = vmr / gDcGain;
-    Vml = vml / gDcGain;
+  lMotorSpeed = ((lMotorTicks * 60) / 8.0)/0.25; //RPM
+  
+  lVolt=(lMotorSpeed/38.35)-0.1;
+  
+  Lerror=lspeed-lMotorSpeed;
+  lControlActionVolt=Lerror/38.35;
+ left=lVolt+lControlActionVolt;
+  lControlAction=map(left,0,5.2,0,255);
+  leftWheel(lControlAction);
 
-  //apply the required voltage to wheels
-    rightWheel(Vmr * rDcGain);
-    leftWheel(Vml * lDcGain);
+  rMotorSpeed = (((rMotorTicks * 60) / 8.0)/0.25); //RPM
+  rVolt=(rMotorSpeed/40.5)+0.74;
+  Rerror=rspeed-rMotorSpeed;
+  rControlActionVolt=Rerror/40.5;
+  right=rVolt+rControlActionVolt;
+  rControlAction=map(right,0,5.2,0,255);
+  rightWheel(rControlAction);
+  
+  Serial.print(lMotorSpeed);
+  Serial.print(" _ ");
+  Serial.println(rMotorSpeed);
+ 
+  
+  //rightWheel(i);
+  lMotorTicks=0;
+  rMotorTicks=0;
+  delay(250);
+  //}
   }
 
   
