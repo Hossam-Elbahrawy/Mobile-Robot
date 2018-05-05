@@ -1,13 +1,13 @@
 #define R 3.2
-#define L 6
-int rSet1 = 4;
-int rSet2 = 5;
-int lSet1 = 6;
-int lSet2 = 7;
-int rEnable = 3;
-int lEnable = 11;
-int rEncoder = 12;
-int lEncoder = 13;
+#define L 7.2
+int rSet1 = 6;
+int rSet2 = 7;
+int lSet1 = 4;
+int lSet2 = 5;
+int rEnable = 11;
+int lEnable = 10;
+int rEncoder = 3;
+int lEncoder = 2;
 volatile float rMotorTicks = 0;
 volatile float lMotorTicks = 0;
 float Dr=0.0;
@@ -15,11 +15,18 @@ float Dl=0.0;
 float Dc=0.0;
 float xOld =0.0;
 float yOld=0.0;
-float thetaOld=0.0;
+float thetaOld=1.57;
 float xNew,yNew,thetaNew;
+
 //initializing variables
 float rMotorSpeed = 0, lMotorSpeed = 0;
-
+int i =0;
+int j=0;
+float lVolt,rVolt;
+float Lerror,Rerror;
+int lspeed=180;
+int rspeed=180;
+float lControlActionVolt,rControlActionVolt,left,right,lControlAction,rControlAction;
 void setup() {
   // put your setup code here, to run once:
   pinMode(rSet1, OUTPUT);
@@ -35,8 +42,6 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(rEncoder), doRightEncoder, RISING); 
   attachInterrupt(digitalPinToInterrupt(lEncoder), doLeftEncoder, RISING);
   Serial.begin(9600);
-leftWheel(255);
-rightWheel(255);
 }
 
 void rightWheel(int rmos){
@@ -56,9 +61,9 @@ void doRightEncoder(){
 void doLeftEncoder(){
   lMotorTicks++;
 }
-float actualPos(Dr,Dl,Dc){
+void actualPos(){
   xNew=xOld+(Dc*cos(thetaOld));
-  yNew=yOld+(Dc*sin(thetaOld);
+  yNew=yOld+(Dc*sin(thetaOld));
   thetaNew=thetaOld+((Dr-Dl)/L);
   xOld=xNew;
   yOld=yNew;
@@ -68,25 +73,45 @@ void loop() {
   // put your main code here, to run repeatedly:
   //suppose we run in forward motion 
   
-  Serial.print(lMotorTicks);
-  Serial.print("_");
-  Serial.println(rMotorTicks);
-  rMotorSpeed = (rMotorTicks / 8.0)*60;
-  lMotorSpeed = (lMotorTicks / 8.0)*60;
-  Dr=rMotorSpeed*(2*PI*R);
+//  if (lMotorTicks >= 8){
+//     leftWheel(0);
+//    }
+//  if (rMotorTicks >= 8){
+//     rightWheel(0);
+//    }
+ 
+  //lVolt=map(i,0,5.2,0,255);
+  
+  lMotorSpeed = ((lMotorTicks * 60) / 8.0)/0.25; //RPM
+  
+  lVolt=(lMotorSpeed/38.35)-0.1;
+  
+  Lerror=lspeed-lMotorSpeed;
+  lControlActionVolt=Lerror/38.35;
+ left=lVolt+lControlActionVolt;
+  lControlAction=map(left,0,5.2,0,255);
+  leftWheel(lControlAction);
+
+  rMotorSpeed = (((rMotorTicks * 60) / 8.0)/0.25); //RPM
+  rVolt=(rMotorSpeed/40.5)+0.74;
+  Rerror=rspeed-rMotorSpeed;
+  rControlActionVolt=Rerror/40.5;
+  right=rVolt+rControlActionVolt;
+  rControlAction=map(right,0,5.2,0,255);
+  rightWheel(rControlAction);
+ 
+  Dr=rMotorSpeed*(2*PI*R);        // cm
   Dl=lMotorSpeed*(2*PI*R);
   Dc=(Dr+Dl)/2;
-  actualPos(Dr,Dl,Dc);
-  rMotorTicks=0;
+  actualPos();
+  //rightWheel(i);
   lMotorTicks=0;
-  /*for (int i = 0 ; i<= 255 ; i+=15){
-  leftWheel(i);
-  Serial.println(" Vl");
-  Serial.println(i);
-  Serial.println(lMotorSpeed);
-  rightWheel(i);
-  Serial.println(" Vr");
-  Serial.println(i);
-  Serial.println(rMotorSpeed);
-  }*/
+  rMotorTicks=0;
+  Serial.print(xNew);
+  Serial.print(" , ");
+  Serial.print(yNew);
+  Serial.print(" , ");
+   Serial.println((thetaNew*180)/PI);
+  delay(250);
+  //}
 }
