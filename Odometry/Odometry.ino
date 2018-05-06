@@ -15,7 +15,7 @@ float Dl=0.0;
 float Dc=0.0;
 float xOld =0.0;
 float yOld=0.0;
-float thetaOld=1.57;
+float thetaOld=0;
 float xNew,yNew,thetaNew;
 
 //initializing variables
@@ -61,10 +61,15 @@ void doRightEncoder(){
 void doLeftEncoder(){
   lMotorTicks++;
 }
+
 void actualPos(){
   xNew=xOld+(Dc*cos(thetaOld));
   yNew=yOld+(Dc*sin(thetaOld));
   thetaNew=thetaOld+((Dr-Dl)/L);
+  
+ // if(thetaNew>PI){thetaNew-=2*PI;}
+  //  if(thetaNew<(-PI)){thetaNew+=2*PI;}
+  thetaNew=atan2(sin(thetaNew),cos(thetaNew));
   xOld=xNew;
   yOld=yNew;
   thetaOld=thetaNew;
@@ -83,12 +88,10 @@ void loop() {
   //lVolt=map(i,0,5.2,0,255);
   
   lMotorSpeed = ((lMotorTicks * 60) / 8.0)/0.25; //RPM
-  
   lVolt=(lMotorSpeed/38.35)-0.1;
-  
   Lerror=lspeed-lMotorSpeed;
   lControlActionVolt=Lerror/38.35;
- left=lVolt+lControlActionVolt;
+  left=lVolt+lControlActionVolt;
   lControlAction=map(left,0,5.2,0,255);
   leftWheel(lControlAction);
 
@@ -100,8 +103,8 @@ void loop() {
   rControlAction=map(right,0,5.2,0,255);
   rightWheel(rControlAction);
  
-  Dr=rMotorSpeed*(2*PI*R);        // cm
-  Dl=lMotorSpeed*(2*PI*R);
+  Dr=(rMotorTicks/8.0)*(2*PI*R);        // cm
+  Dl=(lMotorTicks/8.0)*(2*PI*R);
   Dc=(Dr+Dl)/2;
   actualPos();
   //rightWheel(i);
