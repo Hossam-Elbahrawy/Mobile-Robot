@@ -1,5 +1,8 @@
 
-#define R 3.2
+#define R         (float) 0.032
+#define L         (float) 0.072
+#define FORWARD           1
+#define BACKWARD          0
 int rSet1 = 4;
 int rSet2 = 5;
 int lSet1 = 6;
@@ -10,19 +13,26 @@ int rEncoder = 2;
 int lEncoder = 3;
 volatile float rMotorTicks = 0;
 volatile float lMotorTicks = 0;
+float Dr=0.0;
+float Dl=0.0;
+float Dc=0.0;
+float xOld =0.0;
+float yOld=0.0;
+float thetaOld=0;
+float xNew,yNew,thetaNew;
 
 
 //initializing variables
 float rMotorSpeed = 0, lMotorSpeed = 0;
 int i =0;
-float v = 0, w = 0, k11 = 0, k12 = 0, k13 = 0, k21 = 0, k22 = 0, k23 = 0, vr = 0,  vl = 0, e_x = 0, e_y = 0 , e_theta = 0;
-float x_g = 5 , y_g = 5, theta_g = 90;
+float v = 0, w = 0, k11 =1.1, k12 = 2, k13 = 0, k21 = 0, k22 = 0, k23 = 5, vr = 0,  vl = 0, e_x = 0, e_y = 0 , e_theta = 0;
+float x_g = 1 , y_g = 1, theta_g = 0;
 float vmr = 0, vml = 0, Vmr = 0, Vml = 0, rDcGain = 0, lDcGain = 0, gDcGain = 0 , l = 7.2, x_r = 0, y_r = 0, theta_r = 0;
 float lVolt,rVolt;
 float Lerror,Rerror;
-int lspeed =0;
-int rspeed=0;
-float lControlActionVolt,rControlActionVolt,left,right,lControlAction,rControlAction;
+float lspeed =0;
+float rspeed=0;
+float lControlActionVolt,rControlActionVolt,left,right,lControlAction=0,rControlAction=0;
 void setup() {
   // put your setup code here, to run once:
   pinMode(rSet1, OUTPUT);
@@ -39,37 +49,98 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(lEncoder), doLeftEncoder, RISING);
   Serial.begin(9600);
   
-
+  delay(1500);
 }
-//right wheel movement 
-void rightWheel(int rmos){
-  digitalWrite(rSet1, LOW);
-  digitalWrite(rSet2, HIGH);
+
+void rightWheel(int rmos,int dir){
+   switch(dir){
+    
+    case FORWARD:
+      digitalWrite(rSet1, LOW);
+      digitalWrite(rSet2, HIGH);
+      break;
+
+    case BACKWARD:
+      digitalWrite(rSet1, HIGH);
+      digitalWrite(rSet2, LOW);
+      break;
+      
+    }
   analogWrite(rEnable, rmos);
 }
-//left wheel movement
-void leftWheel(int lmos){
-  digitalWrite(lSet1, LOW);
-  digitalWrite(lSet2, HIGH);
+
+void lApplyControlAction(float controlAction){
+  
+  if(controlAction > 255.0)
+    lControlAction=255.0;
+    
+  if(controlAction<0)
+    leftWheel(abs(lControlAction),BACKWARD);
+  else
+    leftWheel(abs(lControlAction),FORWARD);
+}
+
+
+void rApplyControlAction(float controlAction){
+  
+  if(controlAction > 255.0)
+    rControlAction=255.0;
+    
+  if(controlAction<0)
+    rightWheel(abs(rControlAction),BACKWARD);
+  else
+    rightWheel(abs(rControlAction),FORWARD);
+}
+
+ 
+void leftWheel(int lmos,int dir){
+  switch(dir){
+    
+    case FORWARD:
+      digitalWrite(lSet1, LOW);
+      digitalWrite(lSet2, HIGH);
+      break;
+
+    case BACKWARD:
+      digitalWrite(lSet1, HIGH);
+      digitalWrite(lSet2, LOW);
+      break;
+    }
+    
   analogWrite(lEnable, lmos);
 }
+
 //calculate R motor ticks
 void doRightEncoder(){
   rMotorTicks++;
 }
+
 //calculate L motor ticks
 void doLeftEncoder(){
   lMotorTicks++;
 }
+
+void actualPos(){
+  xNew=xOld+(Dc*cos(thetaOld));
+  yNew=yOld+(Dc*sin(thetaOld));
+  thetaNew=thetaOld+((Dr-Dl)/L);
+  
+  // if(thetaNew>PI){thetaNew-=2*PI;}
+  //  if(thetaNew<(-PI)){thetaNew+=2*PI;}
+  thetaNew=atan2(sin(thetaNew),cos(thetaNew));
+  xOld=xNew;
+  yOld=yNew;
+  thetaOld=thetaNew;
+}
 // calcualte the with respect to the robot frame 
 
-void calcErrors( float x_r  , float y_r , float theta_r ){
+void calcErrors(){
   float d1 = 0, d2 = 0, d3 = 0;
-  d1 = x_g - x_r;
-  d2 = y_g - y_r;
-  d3 = theta_g - theta_r; 
-  e_x = (cos(theta_r)*d1)  + (sin(theta_r)*d2);
-  e_y = -1*(sin(theta_r)*d2) + (cos(theta_r)*d2);
+  d1 = x_g - xNew;
+  d2 = y_g - yNew;
+  d3 = theta_g - thetaNew; 
+  e_x = (cos(thetaNew)*d1)  + (sin(thetaNew)*d2);
+  e_y = -1*(sin(thetaNew)*d2) + (cos(thetaNew)*d2);
   e_theta = (d3);
 }
 
@@ -80,56 +151,65 @@ float gainMatrix(){
 }
 
 float kinematics(){
-  vr = v + (w*l/2);
-  vl = v - (w*l/2);
+  vr = v + (w*L/2);
+  vl = v - (w*L/2);
 }
 void loop() {
   // get the actual pose by the odemetery 
   
-  // Gain matrix controller 
-    //get error constants 
-    calcErrors(x_r, y_r , theta_r);
+  //Gain matrix controller 
+  //get error constants 
+    calcErrors();
 
-  if (!(abs(e_x) >.01 ) && !(abs(e_y) > .01) && !(abs(e_theta) > .01)){ 
+//  if (!(abs(e_x) >.01 ) && !(abs(e_y) > .01) && !(abs(e_theta) > .01)){ 
     //get v,w
     gainMatrix();
   // get vr, vl by the kinematics
-    kinematics(v, w);
+    kinematics();
 
-  // Rpm
+  // rad/s
     rspeed = vr / R;
+    // RPM
+    //rspeed *= 30.0/PI;
     lspeed = vl / R;
+    //lspeed *= 30.0/PI;
+    
 
-  // get the required voltage 
-  lMotorSpeed = ((lMotorTicks * 60) / 8.0)/0.25; //RPM
-  
-  lVolt=(lMotorSpeed/38.35)-0.1;
-  
-  Lerror=lspeed-lMotorSpeed;
-  lControlActionVolt=Lerror/38.35;
- left=lVolt+lControlActionVolt;
-  lControlAction=map(left,0,5.2,0,255);
-  leftWheel(lControlAction);
-
-  rMotorSpeed = (((rMotorTicks * 60) / 8.0)/0.25); //RPM
-  rVolt=(rMotorSpeed/40.5)+0.74;
-  Rerror=rspeed-rMotorSpeed;
-  rControlActionVolt=Rerror/40.5;
-  right=rVolt+rControlActionVolt;
-  rControlAction=map(right,0,5.2,0,255);
-  rightWheel(rControlAction);
-  
-  Serial.print(lMotorSpeed);
-  Serial.print(" _ ");
-  Serial.println(rMotorSpeed);
+  //lMotorSpeed = ((lMotorTicks * 60) / 8.0)/0.05;      //RPM Feedback
+  lVolt=(lspeed/38.35)-0.1;
+  lControlAction=map(lVolt,0,5.2,0,255);
+  lApplyControlAction(lVolt);
  
+
+  //rMotorSpeed = (((rMotorTicks * 60) / 8.0)/0.05); //RPM Feedback
+  rVolt=(rspeed/40.5)+0.74;
+  rControlAction=map(rVolt,0,5.2,0,255);
+  rApplyControlAction(rVolt);
   
-  //rightWheel(i);
-  lMotorTicks=0;
-  rMotorTicks=0;
-  delay(250);
+  Dr=(rMotorTicks/8.0)*(2*PI*R);        // m
+  Dl=(lMotorTicks/8.0)*(2*PI*R);
+  Dc=(Dr+Dl)/2;
+  actualPos();
+  
+  
+  //Serial.print(lspeed);
+  //Serial.print(" , ");
+  //Serial.println(rspeed);
+  //Serial.print(rMotorSpeed);
+  //Serial.print(" , ");
+  //Serial.println(lMotorSpeed);
+  //Serial.print(" , ");
+  //Serial.println(thetaNew);
+  //Serial.print(rControlAction);
+  //Serial.print(" , ");
+  //Serial.println(lControlAction);
+  
+  rMotorTicks = 0;
+  lMotorTicks = 0;
+  
+  delay(50);
   //}
-  }
+//}
 
   
 }

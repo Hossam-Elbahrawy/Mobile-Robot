@@ -1,5 +1,6 @@
 #define R 3.2
 #define L 7.2
+#define Ts  0.05
 int rSet1 = 6;
 int rSet2 = 7;
 int lSet1 = 4;
@@ -87,7 +88,7 @@ void loop() {
  
   //lVolt=map(i,0,5.2,0,255);
   
-  lMotorSpeed = ((lMotorTicks * 60) / 8.0)/0.25; //RPM
+  lMotorSpeed = ((lMotorTicks * 60) / 8.0)/Ts; //RPM
   lVolt=(lMotorSpeed/38.35)-0.1;
   Lerror=lspeed-lMotorSpeed;
   lControlActionVolt=Lerror/38.35;
@@ -95,7 +96,7 @@ void loop() {
   lControlAction=map(left,0,5.2,0,255);
   leftWheel(lControlAction);
 
-  rMotorSpeed = (((rMotorTicks * 60) / 8.0)/0.25); //RPM
+  rMotorSpeed = (((rMotorTicks * 60) / 8.0)/Ts); //RPM
   rVolt=(rMotorSpeed/40.5)+0.74;
   Rerror=rspeed-rMotorSpeed;
   rControlActionVolt=Rerror/40.5;
@@ -114,7 +115,7 @@ void loop() {
   Serial.print(" , ");
   Serial.print(yNew);
   Serial.print(" , ");
-   Serial.println((thetaNew*180)/PI);
-  delay(250);
+  Serial.println((thetaNew*180)/PI);
+  delay(Ts*1000);
   //}
 }
