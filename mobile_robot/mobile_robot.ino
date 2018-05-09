@@ -1,6 +1,6 @@
 
 #define R         (float) 0.032
-#define L         (float) 0.072
+#define L         (float) 0.135
 #define FORWARD           1
 #define BACKWARD          0
 #define rIn1              4
@@ -21,8 +21,8 @@ volatile float lMotorTicks = 0;
 float dR=0.0, dL=0.0, dC=0.0;
 float x=0.0, y=0.0, theta=0.0;
 float rMotorSpeed = 0, lMotorSpeed = 0;
-float v = 0, w = 0, k11 =1.1, k12 = 2, k13 = 0, k21 = 0, k22 = 0, k23 = 5, vR = 0,  vL = 0, eX = 0, eY = 0 , eTheta = 0;
-float xGoal= 1 , yGoal = 1, thetaGoal = 0;
+float v = 0, w = 0, k11 =2, k12 = 2, k13 = 0, k21 = 0, k22 = 0, k23 = 5, vR = 0,  vL = 0, eX = 0, eY = 0 , eTheta = 0;
+float xGoal= 1 , yGoal = 0, thetaGoal = 0;
 int rDir=FORWARD, lDir=FORWARD;
 float vmr = 0, vml = 0, Vmr = 0, Vml = 0 ;
 float lVolt,rVolt;
@@ -85,37 +85,49 @@ void leftWheel(int lSpeed){
 
 void lApplyControlAction(float controlAction){
   
-  if(controlAction > 255.0)
-    lControlAction= 255.0;
     
   if(controlAction<0){
     
-    lDir=FORWARD;
+     if(controlAction < -255.0)
+        lControlAction= -255.0;
+        
+    lDir=BACKWARD;
     leftWheel( abs( lControlAction) );
     
     }else{
+
+      if(controlAction > 255.0)
+        lControlAction= 255.0;
       
-      lDir=BACKWARD;
+      lDir=FORWARD;
       leftWheel( abs( lControlAction) );
       
     }
+
+     if(controlAction > 255.0)
+    lControlAction= 255.0;
     
 }
 
 
 void rApplyControlAction(float controlAction){
+
   
-  if(controlAction > 255.0)
-    rControlAction= 255.0;
-    
+
   if(controlAction<0){
     
-    rDir=FORWARD;
+    if(controlAction < -255.0)
+        rControlAction= -255.0;
+        
+    rDir=BACKWARD;
     rightWheel( abs( rControlAction) );
     
     }else{
       
-      rDir=BACKWARD;
+      if(controlAction > 255.0)
+        rControlAction= 255.0;
+        
+      rDir=FORWARD;
       rightWheel( abs( rControlAction) );
       
     }
@@ -172,30 +184,35 @@ void loop() {
   //get design parameters (v,w)
     gainMatrix();
     
+    if(w>(PI/4))
+      w=PI/4;
+      
+    if(w<(-PI/4))
+      w=-PI/4;
   // get vR, vL from the kinematics
     kinematics();
-
+   
     // wanted right wheel speed in rad/s
     rSpeed = vR / R;
     // wanted right wheel speed in RPM
-    //rSpeed *= 30.0/PI;
-
+    rSpeed *= 30.0/PI;
+     
     // wanted left wheel speed in rad/s
     lSpeed = vL / R;
     
     // wanted right wheel speed in RPM
-    //lSpeed *= 30.0/PI;
+    lSpeed *= 30.0/PI;
     
 
   //lMotorSpeed = ((lMotorTicks * 60) / 8.0)/0.05;      //RPM Feedback
 
   // Calculating desired left wheel voltage 
   lVolt = ( lSpeed / lDcGain ) - 0.1;
+  
   // Mapping control action from (0~5.2)volt to (0~255)
   lControlAction=map(lVolt,0,5.2,0,255);
   //Applying control action to left wheel
-  lApplyControlAction(lVolt);
- 
+  lApplyControlAction(lControlAction);
 
   //rMotorSpeed = (((rMotorTicks * 60) / 8.0)/0.05); //RPM Feedback
 
@@ -204,7 +221,7 @@ void loop() {
   // Mapping control action from (0~5.2)volt to (0~255)
   rControlAction=map(rVolt,0,5.2,0,255);
   //Applying control action to right wheel
-  rApplyControlAction(rVolt);
+  rApplyControlAction(rControlAction);
 
   // Calculating current pose of the robot in (m)
   dR=(rMotorTicks/8.0)*(2*PI*R);        
@@ -214,9 +231,9 @@ void loop() {
   rMotorTicks = 0;
   lMotorTicks = 0;
   
-  //Serial.print(lspeed);
-  //Serial.print(" , ");
-  //Serial.println(rspeed);
+  Serial.print(x);
+  Serial.print(" , ");
+  Serial.println(y);
   //Serial.print(rMotorSpeed);
   //Serial.print(" , ");
   //Serial.println(lMotorSpeed);
