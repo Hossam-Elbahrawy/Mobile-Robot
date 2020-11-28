@@ -16,4 +16,4 @@ Hardware
 
 Support
 ------
-Please feel free to contact us if you have any questions/concerns. My email address is hossam_elbahrawy@hotmail.com
+Please feel free to contact us if you have any questions/concerns. My email address is hossamelbahrawy52@gmail.com
